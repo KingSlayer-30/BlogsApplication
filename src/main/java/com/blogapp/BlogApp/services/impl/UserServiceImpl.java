@@ -1,12 +1,16 @@
 package com.blogapp.BlogApp.services.impl;
 
+import com.blogapp.BlogApp.config.AppConstants;
+import com.blogapp.BlogApp.entities.Role;
 import com.blogapp.BlogApp.entities.User;
 import com.blogapp.BlogApp.exceptions.ResourceNotFoundException;
 import com.blogapp.BlogApp.payloads.UserDto;
+import com.blogapp.BlogApp.repository.RoleRepo;
 import com.blogapp.BlogApp.repository.UserRepo;
 import com.blogapp.BlogApp.services.UserService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +23,13 @@ public class UserServiceImpl implements UserService {
     private UserRepo userRepo;
     @Autowired
     private ModelMapper modelMapper;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RoleRepo roleRepo;
+
     @Override
     public UserDto createUser(UserDto userDto) {
         User user = this.dtoToUser(userDto);
@@ -35,6 +46,7 @@ public class UserServiceImpl implements UserService {
         user.setName(userDto.getName());
         user.setEmail(userDto.getEmail());
         user.setPassword(userDto.getPassword());
+        user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         user.setAbout(userDto.getAbout());
 
         User updateduser=this.userRepo.save(user);
@@ -67,6 +79,21 @@ public class UserServiceImpl implements UserService {
         User user=optionalUser.orElseThrow(() -> new ResourceNotFoundException("User","id",userId));
 
         this.userRepo.delete(user);
+    }
+
+    @Override
+    public UserDto registerNewUser(UserDto userDto) {
+
+        User user=this.modelMapper.map(userDto,User.class);
+        //Encoded the password
+        user.setPassword(this.passwordEncoder.encode(user.getPassword()));
+
+        //roles
+        Role role=this.roleRepo.findById(AppConstants.NORMAL_USER).get();
+        user.getRoles().add(role);
+        User newUser=this.userRepo.save(user);
+
+        return this.modelMapper.map(newUser,UserDto.class);
     }
 
     //Method to convert DTO object into entity object
